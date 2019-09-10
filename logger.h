@@ -11,6 +11,7 @@
 #include <fstream>
 #include <sstream>
 #include <string>
+#include <unistd.h>
 
 // Socket header files
 #ifdef WIN32
@@ -79,21 +80,23 @@ namespace FlexibleLog{
     }LogVerbosity;
 
     //enum for LOG_TYPE
-    typedef enum{
+    typedef enum LOG_TYPE{
         T_NOWHERE,
         T_CONSOLE,
         T_FILE
     }LogType;
-    class LogMess;
+    class MessageBody;
     class Logger{
     public:
         static Logger* getInstance() throw();
         //Interface for FATAL Log
         //ostringstream& log(string a,int b);
         ostringstream&sref();
-        void pr(){
-            cout<<(sl)->str();
-        }
+        void srefClear();
+        bool isFileEnabled(){return printFile_;}
+        bool isFuncEnabled(){return printFunc_;}
+        bool isTimeEnabled(){return printTime_;}
+        std::string getCurrentTime();
         void fatal(const char*text,int vebosity,int l)throw();
         void fatal(std::string&str,int vebosity,int l)throw();
         void fatal(std::ostringstream&str,int vebosity,int l)throw();
@@ -134,6 +137,7 @@ namespace FlexibleLog{
         ~Logger();
         void lock();
         void unlock();
+
     private:
         void logIntoFile(std::string& data);
         void logOnConsole(std::string& data);
@@ -142,42 +146,98 @@ namespace FlexibleLog{
         static Logger* m_Instance;
         std::ofstream  m_File;
         std::ostringstream *sl;
+        bool printFile_;
+        bool printFunc_;
+        bool printTime_;
         //static LogVerbosity[NUM_OF_LOG_LEVEL]levelVerbosityMap={V_PRIMARY};
-        //LogMess msg;
+        //MessageBody msg;
         LogLevel m_minLogLevel;
         LogType m_LogType;
 
 
-#ifdef WIN32
+        #ifdef WIN32
         CRITICAL_SECTION m_Mutex;
-#else
+        #else
         pthread_mutexattr_t m_Attr;
         pthread_mutex_t m_Mutex;
-#endif
+        #endif
     };
-    class LogMess{
+    class MessageBody{
     public:
 
-        std::string msg;
-        bool iterate_;
-        LogMess(string a,int b):msg(a),iterate_(true){
-            //st = new ostringstream();
-            //iterate_= true;
-            cout<<"constrc\n";
-            //*st<<a;
-        }
-        iterate(){
-            return iterate_;
-        }
-        void next(ostringstream &st){
-            iterate_ = false;
+        //0000
+        MessageBody(const char* file, int line, const char* func,bool loop);
+        //0001
 
-            msg+=st.str();
-            cout<<msg<<" done \n";
+        MessageBody(const char* file, int line, const char* func,bool loop,const char* msg);
+        //0010
+        MessageBody(const char* file, int line, const char* func,bool loop,bool condition);
+
+        //0100
+        MessageBody(const char* file, int line, const char* func,bool loop,char verbosity);
+        //1000
+        MessageBody(const char* file, int line, const char* func,bool loop,int level);
+        //0011
+        MessageBody(const char* file, int line, const char* func,bool loop,bool condition,const char* msg);
+        //0101
+        MessageBody(const char* file, int line, const char* func,bool loop,char verbosity,const char* msg);
+        //1001
+        MessageBody(const char* file, int line, const char* func,bool loop,int level,const char* msg);
+        //0110
+        MessageBody(const char* file, int line, const char* func,bool loop,char verbosity,bool condition);
+        //1010
+        MessageBody(const char* file, int line, const char* func,bool loop,int level,bool condition);
+        //1100
+        MessageBody(const char* file, int line, const char* func,bool loop,int level,char verbosity);
+        //0111
+        MessageBody(const char* file, int line, const char* func,bool loop,char verbosity,bool condition,const char* msg);
+        //1011
+        MessageBody(const char* file, int line, const char* func,bool loop,int level,bool condition,const char* msg);
+        //1101
+        MessageBody(const char* file, int line, const char* func,bool loop,int level,char verbosity,const char* msg);
+        //1110
+        MessageBody(const char* file, int line, const char* func,bool loop,int level,char verbosity,bool condition);
+        //1111
+        MessageBody(const char* file, int line, const char* func,bool loop,int level,char verbosity,bool condition,const char* msg);
+
+        string getLevel(LogLevel level_){
+            switch (level_) {
+                case 0 : return "NOLOG";
+                case 1 : return "DEBUG";
+                case 2 : return "INFO";
+                case 3 : return "WARN";
+                case 4 : return "ALARM";
+                case 5 : return "ALWAYS";
+                case 6 : return "ERROR";
+                case 7 : return "FATAL";
+                default: return "###";
+            }
+        }
+        string getVerbosity(LogVerbosity verbosity_){
+            switch (verbosity_) {
+                case 0: return "0";
+                case 1: return "P";
+                case 2: return "S";
+                case 3: return "G";
+                default: return "#";
+            }
         }
 
+        bool isLoopTrue();
+        void logNow(ostringstream &st);
+        private:
+        const char* msg_;
+        bool condition_;
+        bool loop_;
+        const char *file_;
+        const char *func_;
+        const int line_;
+        LogLevel level_;
+        LogVerbosity verbosity_;
     };
-}   typedef FlexibleLog::Logger Logger;   //End of Namespace
-#define LOG(a,b)  for(FlexibleLog::LogMess d(a,b);d.iterate();d.next(Logger::getInstance()->sref())) cout<<""
+} //End of Namespace
+typedef FlexibleLog::Logger Logger;
+typedef FlexibleLog::MessageBody MessageBody;
+#define LOG(a...)  for(MessageBody i(__FILE__,__LINE__,__func__,true,##a);i.isLoopTrue();i.logNow(Logger::getInstance()->sref()))Logger::getInstance()->sref()
 #define FATAL(a,b)  LOG(a,b)
 #endif // End of LOGS_H_

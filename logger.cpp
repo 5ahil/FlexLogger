@@ -6,7 +6,9 @@
 #include <iostream>
 #include <cstdlib>
 #include <ctime>
+#include <string>
 #include <sstream>
+#include <unistd.h>
 
 // Actual header file to be Recomemded
 #include "logger.h"
@@ -23,6 +25,9 @@ const string logFileName = "main.log";
 Logger::Logger(){
     m_File.open(logFileName.c_str(),ios::out|ios::app);
     sl=new ostringstream();
+    printFile_=true;
+    printFunc_=true;
+    printTime_=true;
     m_minLogLevel = L_INFO;
     m_LogType = T_FILE;
     //Initialize mutex
@@ -120,3 +125,116 @@ string str = stream.str();
 cout<<"3.veb"<<l<<endl;
     fatal(str.data(),verbosity);
 }*/
+//0000
+MessageBody::MessageBody(const char* file, int line, const char* func,bool loop):msg_(""),condition_(true),file_(file),line_(line),func_(func),loop_(loop),level_(L_INFO),verbosity_(V_PRIMARY){
+   //cout<<"0\n";
+}
+//0001
+MessageBody::MessageBody(const char* file, int line, const char* func,bool loop,const char* msg):msg_(msg),condition_(true),file_(file),line_(line),func_(func),loop_(loop),level_(L_INFO),verbosity_(V_PRIMARY){
+   //cout<<"inside\n";
+   //cout<<msg_<<" "<<msg<<endl;
+}
+//0010
+
+MessageBody::MessageBody(const char* file, int line, const char* func,bool loop,bool condition):msg_(""),condition_(condition),file_(file),line_(line),func_(func),loop_(loop),level_(L_INFO),verbosity_(V_PRIMARY){
+   //loop_=true;cout<<"2\n";
+}
+//0100
+MessageBody::MessageBody(const char* file, int line, const char* func,bool loop,char verbosity):msg_(""),condition_(true),file_(file),line_(line),func_(func),loop_(loop),level_(L_INFO),verbosity_(static_cast<LogVerbosity>((int)verbosity-'0')){
+   //loop_=true;cout<<"3\n";
+}
+//1000
+MessageBody::MessageBody(const char* file, int line, const char* func,bool loop,int level):msg_(""),condition_(true),file_(file),line_(line),func_(func),loop_(loop),level_(static_cast<LogLevel>(level)),verbosity_(V_PRIMARY){
+   //loop_=true;cout<<"4\n";
+}
+//0011
+MessageBody::MessageBody(const char* file, int line, const char* func,bool loop,bool condition,const char* msg):msg_(msg),condition_(condition),file_(file),line_(line),func_(func),loop_(loop),level_(L_INFO),verbosity_(V_PRIMARY){
+   //loop_=true;cout<<"5\n";
+}
+//0101
+MessageBody::MessageBody(const char* file, int line, const char* func,bool loop,char verbosity,const char* msg):msg_(msg),condition_(true),file_(file),line_(line),func_(func),loop_(loop),level_(L_INFO),verbosity_(static_cast<LogVerbosity>((int)verbosity-'0')){
+   //loop_=true;cout<<"6\n";
+}
+//1001
+MessageBody::MessageBody(const char* file, int line, const char* func,bool loop,int level,const char* msg):msg_(msg),condition_(true),file_(file),line_(line),func_(func),loop_(loop),level_(static_cast<LogLevel>(level)),verbosity_(V_PRIMARY){
+   //cout<<"7\n";
+}
+//0110
+MessageBody::MessageBody(const char* file, int line, const char* func,bool loop,char verbosity,bool condition):msg_(""),condition_(condition),file_(file),line_(line),func_(func),loop_(loop),level_(L_INFO),verbosity_(static_cast<LogVerbosity>((int)verbosity-'0')){
+   //cout<<"8\n";
+}
+//1010
+MessageBody::MessageBody(const char* file, int line, const char* func,bool loop,int level,bool condition):msg_(""),condition_(condition),file_(file),line_(line),func_(func),loop_(loop),level_(static_cast<LogLevel>(level)),verbosity_(V_PRIMARY){
+   //cout<<"09\n";
+}
+//1100
+MessageBody::MessageBody(const char* file, int line, const char* func,bool loop,int level,char verbosity):msg_(""),condition_(true),file_(file),line_(line),func_(func),loop_(loop),level_(static_cast<LogLevel>(level)),verbosity_(static_cast<LogVerbosity>((int)verbosity-'0')){
+   //cout<<"10\n";
+}
+//0111
+MessageBody::MessageBody(const char* file, int line, const char* func,bool loop,char verbosity,bool condition,const char* msg):msg_(msg),condition_(condition),file_(file),line_(line),func_(func),loop_(loop),level_(L_INFO),verbosity_(static_cast<LogVerbosity>((int)verbosity-'0')){
+   //cout<<"110\n";
+}
+//1011
+MessageBody::MessageBody(const char* file, int line, const char* func,bool loop,int level,bool condition,const char* msg):msg_(msg),condition_(condition),file_(file),line_(line),func_(func),loop_(loop),level_(static_cast<LogLevel>(level)),verbosity_(V_PRIMARY){
+    //cout<<"012\n";
+}
+//1101
+MessageBody::MessageBody(const char* file, int line, const char* func,bool loop,int level,char verbosity,const char* msg):msg_(msg),condition_(true),file_(file),line_(line),func_(func),loop_(loop),level_(static_cast<LogLevel>(level)),verbosity_(static_cast<LogVerbosity>((int)verbosity-'0')){
+   //cout<<"13\n";
+}
+//1110
+MessageBody::MessageBody(const char* file, int line, const char* func,bool loop,int level,char verbosity,bool condition):msg_(""),condition_(condition),file_(file),line_(line),func_(func),loop_(loop),level_(static_cast<LogLevel>(level)),verbosity_(static_cast<LogVerbosity>((int)verbosity-'0')){
+   //cout<<"140\n";
+}
+//1111
+MessageBody::MessageBody(const char* file, int line, const char* func,bool loop,int level,char verbosity,bool condition,const char* msg):msg_(msg),condition_(condition),file_(file),line_(line),func_(func),loop_(loop),level_(static_cast<LogLevel>(level)),verbosity_(static_cast<LogVerbosity>((int)verbosity-'0')){
+   //cout<<"015\n";
+}
+void Logger::srefClear(){
+    sl->str("");
+}
+string Logger::getCurrentTime()
+{
+   string currTime;
+   //Current date/time based on current time
+   time_t now = time(0);
+   // Convert current time to string
+   currTime.assign(ctime(&now));
+
+   // Last charactor of currentTime is "\n", so remove it
+   string currentTime = currTime.substr(0, currTime.size()-1);
+   return currentTime;
+}
+bool MessageBody::isLoopTrue(){
+    return loop_;
+}
+void MessageBody::logNow(ostringstream &st){
+    loop_ = false;
+
+    if(!condition_)return; //need srefClear
+    stringstream fullMessage;
+    if(Logger::getInstance()->isTimeEnabled())
+    fullMessage<<"["<<Logger::getInstance()->getCurrentTime()<<"] ";
+    if(Logger::getInstance()->isFuncEnabled())
+    fullMessage<<"["<<string(func_)<<"] ";
+    if(Logger::getInstance()->isFileEnabled()){
+        fullMessage<<"["<<string(file_);
+        fullMessage<<":"<<line_<<"] ";
+    }
+
+
+    #ifdef WIN32
+    fullMessage<<"["<<GetCurrentProcessId();
+    #else
+    fullMessage<<"["<<getpid();
+    #endif
+    fullMessage<<"] ";
+    //msg_+=st.str();
+    fullMessage<<getLevel(level_)<<"("<<getVerbosity(verbosity_)<<") [";
+    fullMessage<<msg_<<" ";
+    fullMessage<<st.str();
+    fullMessage<<"]";
+    cout<<fullMessage.str()<<"\n";
+    Logger::getInstance()->srefClear();
+}
