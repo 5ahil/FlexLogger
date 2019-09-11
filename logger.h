@@ -25,41 +25,10 @@
 #endif //end of IF for socket file header's IF
 using namespace std;
 namespace FlexibleLog{
-    //Recomemded direct interface for Logging
-    // v= verbosity of the called log_level
-    // s= data to be logged, can be in string,stream or char array
-    // l= log_level i.e FATAL, ERROR, WARN etc.,
-    // b= boolean value, true or false
-
-
-    //#define FATAL_1(s)    Logger:: getInstance()->fatal(s)
-/*
-    #define ERROR(s,v)  Logger:: getInstance()->error(s,v)
-    #define ERROR(s)    Logger:: getInstance()->error(s)
-
-    #define ALWAYS(s,v) Logger:: getInstance()->always(s,v)
-    #define ALWAYS(s)   Logger:: getInstance()->always(s)
-
-    #define ALARM(s,v)  Logger:: getInstance()->alarm(s,v)
-    #define ALARM(s)    Logger:: getInstance()->alarm(s)
-
-    #define WARN(s,v)   Logger:: getInstance()->warn(s,v)
-    #define WARN(s)     Logger:: getInstance()->warn(s)
-
-    #define INFO(s,v)   Logger:: getInstance()->info(s,v)
-    #define INFO(s)     Logger:: getInstance()->info(s)
-
-    #define DEBUG(s,v)  Logger:: getInstance()->debug(s,v)
-    #define DEBUG(s)    Logger:: getInstance()->debug(s)
-
-    #define LOG(l,b,s)  Logger:: getInstance()->log(s,v)
-    #define LOG(s)      Logger:: getInstance()->log(s)
-*/
-    //update functions goes here
 
     // enum for LOG_LEVEL
     typedef enum LOG_LEVEL{
-        L_NOLOG,
+        ENABLE_ALL_LOG,
         L_DEBUG,
         L_INFO,
         L_WARN,
@@ -67,70 +36,39 @@ namespace FlexibleLog{
         L_ALWAYS,
         L_ERROR,
         L_FATAL,
-        NUM_OF_LOG_LEVEL
+        DISABLE_ALL_LOG
     }LogLevel;
 
     //enum for LOG_VERBOSITY
     typedef enum LOG_VERBOSITY{
-        V_NONE,
+        DISABLE_ALL_VERBOSITY,
         V_PRIMARY,
         V_SECONDRY,
         V_GOSSIP,
-        NUM_OF_VERBOSITY_LEVEL
+        ENABLE_ALL_VERBOSITY
     }LogVerbosity;
 
     //enum for LOG_TYPE
     typedef enum LOG_TYPE{
-        T_NOWHERE,
+        T_JSON,
         T_CONSOLE,
         T_FILE
     }LogType;
+
     class MessageBody;
     class Logger{
     public:
         static Logger* getInstance() throw();
-        //Interface for FATAL Log
-        //ostringstream& log(string a,int b);
+        LogVerbosity getVerbosityOfLevel(LogLevel level_){return levelVerbosityMap[level_];}
+        LogLevel getMinLogLevel(){return m_minLogLevel;}
         ostringstream&sref();
         void srefClear();
         bool isFileEnabled(){return printFile_;}
         bool isFuncEnabled(){return printFunc_;}
         bool isTimeEnabled(){return printTime_;}
-        std::string getCurrentTime();
-        void fatal(const char*text,int vebosity,int l)throw();
-        void fatal(std::string&str,int vebosity,int l)throw();
-        void fatal(std::ostringstream&str,int vebosity,int l)throw();
-/*
-        //Interface for ERROR Log
-        void error(std::string&str,int vebosity=V_PRIMARY)throw();
-        void error(std::ostringstream&str,int vebosity=V_PRIMARY)throw();
-        void error(const char*text,int vebosity=V_PRIMARY)throw();
-
-        //Interface for ALWAYS Log
-        void always(const char*text,int vebosity=V_PRIMARY)throw();
-        void always(std::string&str,int vebosity=V_PRIMARY)throw();
-        void always(std::ostringstream&str,int vebosity=V_PRIMARY)throw();
-
-        //Interface for ALARM Log
-        void alarm(const char*text,int vebosity=V_PRIMARY)throw();
-        void alarm(std::string&str,int vebosity=V_PRIMARY)throw();
-        void alarm(std::ostringstream&str,int vebosity=V_PRIMARY)throw();
-
-        //Interface for WARN Log
-        void warn(const char*text,int vebosity=V_PRIMARY)throw();
-        void warn(std::string&str,int vebosity=V_PRIMARY)throw();
-        void warn(std::ostringstream&str,int vebosity=V_PRIMARY)throw();
-
-        //Interface for INFO Log
-        void info(const char*text,int vebosity=V_PRIMARY)throw();
-        void info(std::string&str,int vebosity=V_PRIMARY)throw();
-        void info(std::ostringstream&str,int vebosity=V_PRIMARY)throw();
-
-        //Interface for DEBUG Log
-        void debug(const char*text,int vebosity=V_PRIMARY)throw();
-        void debug(std::string&str,int vebosity=V_PRIMARY)throw();
-        void debug(std::ostringstream&str,int vebosity=V_PRIMARY)throw();
-*/
+        string getCurrentTime();
+        LogType getLogType(){return m_LogType;};
+        void logIntoFile(std::string data);
 
     protected:
         Logger();
@@ -139,18 +77,16 @@ namespace FlexibleLog{
         void unlock();
 
     private:
-        void logIntoFile(std::string& data);
         void logOnConsole(std::string& data);
         Logger(const Logger&obj);
         void operator=(const Logger&obj);
         static Logger* m_Instance;
-        std::ofstream  m_File;
-        std::ostringstream *sl;
+        ofstream  m_File;
+        ostringstream *sl;
         bool printFile_;
         bool printFunc_;
         bool printTime_;
-        //static LogVerbosity[NUM_OF_LOG_LEVEL]levelVerbosityMap={V_PRIMARY};
-        //MessageBody msg;
+        LogVerbosity levelVerbosityMap [DISABLE_ALL_LOG];
         LogLevel m_minLogLevel;
         LogType m_LogType;
 
@@ -165,40 +101,59 @@ namespace FlexibleLog{
     class MessageBody{
     public:
 
+        // MessageBody class have all necessary members to create complete log string.
+        // Constructor of the class can be created providing atmost four arguments in macro LOG()
+        // Those arguments are should always be in order from LogLevel->LogVerbosity->boolean-condition->string-data
+        // So, we can have 16 permutations of such constructors.
+
         //0000
         MessageBody(const char* file, int line, const char* func,bool loop);
-        //0001
 
+        //0001
         MessageBody(const char* file, int line, const char* func,bool loop,const char* msg);
+
         //0010
         MessageBody(const char* file, int line, const char* func,bool loop,bool condition);
 
         //0100
         MessageBody(const char* file, int line, const char* func,bool loop,char verbosity);
+
         //1000
         MessageBody(const char* file, int line, const char* func,bool loop,int level);
+
         //0011
         MessageBody(const char* file, int line, const char* func,bool loop,bool condition,const char* msg);
+
         //0101
         MessageBody(const char* file, int line, const char* func,bool loop,char verbosity,const char* msg);
+
         //1001
         MessageBody(const char* file, int line, const char* func,bool loop,int level,const char* msg);
+
         //0110
         MessageBody(const char* file, int line, const char* func,bool loop,char verbosity,bool condition);
+
         //1010
         MessageBody(const char* file, int line, const char* func,bool loop,int level,bool condition);
+
         //1100
         MessageBody(const char* file, int line, const char* func,bool loop,int level,char verbosity);
+
         //0111
         MessageBody(const char* file, int line, const char* func,bool loop,char verbosity,bool condition,const char* msg);
+
         //1011
         MessageBody(const char* file, int line, const char* func,bool loop,int level,bool condition,const char* msg);
+
         //1101
         MessageBody(const char* file, int line, const char* func,bool loop,int level,char verbosity,const char* msg);
+
         //1110
         MessageBody(const char* file, int line, const char* func,bool loop,int level,char verbosity,bool condition);
+
         //1111
         MessageBody(const char* file, int line, const char* func,bool loop,int level,char verbosity,bool condition,const char* msg);
+
 
         string getLevel(LogLevel level_){
             switch (level_) {
@@ -222,10 +177,10 @@ namespace FlexibleLog{
                 default: return "#";
             }
         }
-
         bool isLoopTrue();
         void logNow(ostringstream &st);
-        private:
+
+    private:
         const char* msg_;
         bool condition_;
         bool loop_;

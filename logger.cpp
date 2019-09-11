@@ -17,7 +17,6 @@ using namespace std;
 using namespace FlexibleLog;
 
 Logger* Logger::m_Instance = NULL;
-//ostringstream* Logger::sl=new ostringstream();
 // file name for Logging
 const string logFileName = "main.log";
 
@@ -25,15 +24,16 @@ const string logFileName = "main.log";
 Logger::Logger(){
     m_File.open(logFileName.c_str(),ios::out|ios::app);
     sl=new ostringstream();
+    for(int i=0;i<DISABLE_ALL_LOG;i++) levelVerbosityMap[i]=V_PRIMARY;
     printFile_=true;
     printFunc_=true;
     printTime_=true;
     m_minLogLevel = L_INFO;
     m_LogType = T_FILE;
     //Initialize mutex
-#ifdef WIN32
+    #ifdef WIN32
     InitializeCriticalSection(&m_Mutex);
-#else
+    #else
     int err=0;
     err = pthread_mutexattr_settype(&m_Attr,PTHREAD_MUTEX_ERRORCHECK_NP);
     if (err!=0){
@@ -45,19 +45,19 @@ Logger::Logger(){
         printf("Failed to Initialize mutex\n");
         exit(0);
     }
-#endif  // End of mutex Initialization
+    #endif  // End of mutex Initialization
 }
 
 //Logger destructor
 Logger::~Logger(){
     m_File.close();
     //destroy Mutex
-#ifdef WIN32
+    #ifdef WIN32
     DeleteCriticalSection(&m_Mutex);
-#else
+    #else
     pthread_mutexattr_destroy(&m_Attr);
     pthread_mutex_destroy(&m_Mutex);
-#endif // End of mutex destruction
+    #endif // End of mutex destruction
 }
 Logger* Logger::getInstance() throw ()
 {
@@ -74,24 +74,24 @@ ostringstream& Logger::sref(){
 }
 //Logger lock
 void Logger::lock(){
-#ifdef WIN32
+    #ifdef WIN32
     EnterCriticalSection(&m_Mutex);
-#else
+    #else
     pthread_mutex_lock(&m_Mutex);
-#endif
+    #endif
 }
 
 //logger unlock
 void Logger::unlock(){
-#ifdef WIN32
+    #ifdef WIN32
     LeaveCriticalSection(&m_Mutex);
-#else
+    #else
     pthread_mutex_unlock(&m_Mutex);
-#endif
+    #endif
 }
 
 // log into Files
-void Logger::logIntoFile(std::string& data){
+void Logger::logIntoFile(std::string data){
     lock();
     m_File<<data<<endl;
     unlock();
@@ -100,31 +100,20 @@ void Logger::logIntoFile(std::string& data){
 void Logger::logOnConsole(std::string& data){
     cout<<data<<endl;
 }
-/*ostringstream& Logger::log(string a,int b){
-    LogMess d(a,b);
-    for(;d.iterate();d.next())return d.sref();
-    cout<<"here\n";
-    //d.load();
-    return d.sref();
+string Logger::getCurrentTime()
+{
+   string currTime;
+   //Current date/time based on current time
+   time_t now = time(0);
+   // Convert current time to string
+   currTime.assign(ctime(&now));
+
+   // Last charactor of currentTime is "\n", so remove it
+   string currentTime = currTime.substr(0, currTime.size()-1);
+   return currentTime;
 }
-// FATAL
-/*void Logger::fatal(const char*text,int verbosity,int l)throw(){
-    string data;
-    cout<<"1.veb"<<l<<endl;
-    data.append("[FATAL]:");
-    //data.append(atoi(__LINE__));
-    data.append(text);
-    logOnConsole(data);
-}
-void Logger::fatal(std::string&str,int verbosity,int l)throw(){
-    cout<<"2.veb"<<l<<endl;
-    fatal(str.data(),verbosity);
-}
-void Logger::fatal(std::ostringstream&stream,int verbosity,int l)throw(){
-string str = stream.str();
-cout<<"3.veb"<<l<<endl;
-    fatal(str.data(),verbosity);
-}*/
+
+
 //0000
 MessageBody::MessageBody(const char* file, int line, const char* func,bool loop):msg_(""),condition_(true),file_(file),line_(line),func_(func),loop_(loop),level_(L_INFO),verbosity_(V_PRIMARY){
    //cout<<"0\n";
@@ -194,25 +183,20 @@ MessageBody::MessageBody(const char* file, int line, const char* func,bool loop,
 void Logger::srefClear(){
     sl->str("");
 }
-string Logger::getCurrentTime()
-{
-   string currTime;
-   //Current date/time based on current time
-   time_t now = time(0);
-   // Convert current time to string
-   currTime.assign(ctime(&now));
 
-   // Last charactor of currentTime is "\n", so remove it
-   string currentTime = currTime.substr(0, currTime.size()-1);
-   return currentTime;
-}
 bool MessageBody::isLoopTrue(){
     return loop_;
 }
 void MessageBody::logNow(ostringstream &st){
     loop_ = false;
 
-    if(!condition_)return; //need srefClear
+    if(!condition_){Logger::getInstance()->srefClear();return;} //need srefClear
+    if(level_ < L_DEBUG || level_>=DISABLE_ALL_LOG){Logger::getInstance()->srefClear();return;}
+    if(verbosity_ <= DISABLE_ALL_VERBOSITY || verbosity_ > V_GOSSIP){Logger::getInstance()->srefClear();return;}
+    if(Logger::getInstance()->getMinLogLevel()>level_){Logger::getInstance()->srefClear();return;}
+    if(Logger::getInstance()->getVerbosityOfLevel(level_)<verbosity_){Logger::getInstance()->srefClear();return;}
+
+
     stringstream fullMessage;
     if(Logger::getInstance()->isTimeEnabled())
     fullMessage<<"["<<Logger::getInstance()->getCurrentTime()<<"] ";
@@ -235,6 +219,16 @@ void MessageBody::logNow(ostringstream &st){
     fullMessage<<msg_<<" ";
     fullMessage<<st.str();
     fullMessage<<"]";
-    cout<<fullMessage.str()<<"\n";
+
     Logger::getInstance()->srefClear();
+    LogType logType_ = Logger::getInstance()->getLogType();
+    if(logType_ == T_JSON){
+        cout<<"Under Process. Will be done soon. Sorry as of now. \nBye!";
+    }
+    else if(logType_ == T_CONSOLE){
+        cout<<fullMessage.str()<<"\n";
+    }
+    else{
+        Logger::getInstance()->logIntoFile(fullMessage.str());
+    }
 }
