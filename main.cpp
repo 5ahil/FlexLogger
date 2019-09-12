@@ -17,7 +17,7 @@ int main(){
     LOG('2',"dd")<<" Shahil";
     LOG(7,"sds")<<" Shahil";
     LOG('3',true)<<" Shahil";
-    LOG(5,true)<<" Shahil";
+    FATAL('1',true,"Names\n")<<" 1.Shahil";
     LOG(6,'2')<<" Shahil";
     LOG('2',true,"sqsq")<<" Shahil";
     LOG(1,true,"sqsq")<<" Shahil";

@@ -23,7 +23,9 @@
 #include <errno.h>
 #include <pthread.h>
 #endif //end of IF for socket file header's IF
+
 using namespace std;
+
 namespace FlexibleLog{
 
     // enum for LOG_LEVEL
@@ -58,17 +60,33 @@ namespace FlexibleLog{
     class MessageBody;
     class Logger{
     public:
+        //get functions
         static Logger* getInstance() throw();
-        LogVerbosity getVerbosityOfLevel(LogLevel level_){return levelVerbosityMap[level_];}
-        LogLevel getMinLogLevel(){return m_minLogLevel;}
-        ostringstream&sref();
-        void srefClear();
+        LogVerbosity   getVerbosityOfLevel(LogLevel level_){return m_LevelVerbosityMap[level_];}
+        LogLevel       getMinLogLevel(){return m_minLogLevel;}
+        ostringstream& getLogStrStreamRef();
+        string         getCurrentTime();
+        LogType        getLogType(){return m_LogType;}
+
+        //set functions
+        bool setMinLogLeve(int val);
+        bool setLogType(int val);
+        bool setVerbosityOfLeve(int val1,char val2);
+        bool setprintFile_(bool val);
+        bool setprintFunc_(bool val);
+        bool setprintTime_(bool val);
+
+        // put the log into file
+        void logIntoFile(std::string data);
+
+        // clear m_LogStrStream
+        void clearLogStrStreamRef();
+
+        // check whats enable
         bool isFileEnabled(){return printFile_;}
         bool isFuncEnabled(){return printFunc_;}
         bool isTimeEnabled(){return printTime_;}
-        string getCurrentTime();
-        LogType getLogType(){return m_LogType;};
-        void logIntoFile(std::string data);
+
 
     protected:
         Logger();
@@ -82,11 +100,11 @@ namespace FlexibleLog{
         void operator=(const Logger&obj);
         static Logger* m_Instance;
         ofstream  m_File;
-        ostringstream *sl;
+        ostringstream *m_LogStrStream;
         bool printFile_;
         bool printFunc_;
         bool printTime_;
-        LogVerbosity levelVerbosityMap [DISABLE_ALL_LOG];
+        LogVerbosity m_LevelVerbosityMap [DISABLE_ALL_LOG];
         LogLevel m_minLogLevel;
         LogType m_LogType;
 
@@ -193,6 +211,12 @@ namespace FlexibleLog{
 } //End of Namespace
 typedef FlexibleLog::Logger Logger;
 typedef FlexibleLog::MessageBody MessageBody;
-#define LOG(a...)  for(MessageBody i(__FILE__,__LINE__,__func__,true,##a);i.isLoopTrue();i.logNow(Logger::getInstance()->sref()))Logger::getInstance()->sref()
-#define FATAL(a,b)  LOG(a,b)
+#define LOG(a...)  for(MessageBody i(__FILE__,__LINE__,__func__,true,##a);i.isLoopTrue();i.logNow(Logger::getInstance()->getLogStrStreamRef()))Logger::getInstance()->getLogStrStreamRef()
+#define FATAL(a...)   LOG(7,##a)
+#define ERR(a...)   LOG(6,##a)
+#define ALWAYS(a...)  LOG(5,##a)
+#define ALARM(a...)   LOG(4,##a)
+#define WARN(a...)    LOG(3,##a)
+#define INFO(a...)    LOG(2,##a)
+#define DEBUG(a...)   LOG(1,##a)
 #endif // End of LOGS_H_
